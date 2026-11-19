@@ -1,10 +1,5 @@
-import type { FilterType, Task } from '../types/task'
-
-interface TaskFiltersProps {
-  tasks: Task[]
-  activeFilter: FilterType
-  onFilterChange: (filter: FilterType) => void
-}
+import { useTaskContext } from '../hooks/useTaskContext'
+import type { FilterType } from '../types/task'
 
 const filters: { value: FilterType; label: string }[] = [
   { value: 'all', label: 'Всі' },
@@ -12,11 +7,8 @@ const filters: { value: FilterType; label: string }[] = [
   { value: 'completed', label: 'Виконані' },
 ]
 
-function TaskFilters({
-  tasks,
-  activeFilter,
-  onFilterChange,
-}: TaskFiltersProps) {
+function TaskFilters() {
+  const { tasks, filter: activeFilter, setFilter } = useTaskContext()
   const completedCount = tasks.filter((task) => task.completed).length
   const counts: Record<FilterType, number> = {
     all: tasks.length,
@@ -26,26 +18,26 @@ function TaskFilters({
 
   return (
     <nav
-      className="d-flex flex-wrap gap-2 mb-3"
+      className="d-flex flex-wrap gap-2"
       aria-label="Фільтри завдань"
     >
-      {filters.map((filter) => (
+      {filters.map((item) => (
         <button
-          key={filter.value}
+          key={item.value}
           type="button"
           className={`btn ${
-            activeFilter === filter.value ? 'btn-primary' : 'btn-outline-primary'
+            activeFilter === item.value ? 'btn-primary' : 'btn-outline-primary'
           }`}
-          aria-pressed={activeFilter === filter.value}
-          onClick={() => onFilterChange(filter.value)}
+          aria-pressed={activeFilter === item.value}
+          onClick={() => setFilter(item.value)}
         >
-          {filter.label}{' '}
+          {item.label}{' '}
           <span
             className={`badge ${
-              activeFilter === filter.value ? 'text-bg-light' : 'text-bg-secondary'
+              activeFilter === item.value ? 'text-bg-light' : 'text-bg-secondary'
             }`}
           >
-            {counts[filter.value]}
+            {counts[item.value]}
           </span>
         </button>
       ))}

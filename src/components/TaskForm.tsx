@@ -1,32 +1,34 @@
 import { useState, type FormEvent } from 'react'
+import { useTaskContext } from '../hooks/useTaskContext'
 import type { Task } from '../types/task'
 
-interface TaskFormProps {
-  onAddTask: (task: Omit<Task, 'id' | 'completed'>) => void
+function isPriority(value: string): value is Task['priority'] {
+  return value === 'low' || value === 'medium' || value === 'high'
 }
 
-function TaskForm({ onAddTask }: TaskFormProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [priority, setPriority] = useState<Task['priority']>('medium')
+function TaskForm() {
+  const {
+    editingTask,
+    setEditingTask,
+    addTask,
+    updateTask,
+    showToast,
+    pendingDeleteId,
+    pendingClearCompleted,
+  } = useTaskContext()
+  const [title, setTitle] = useState(editingTask?.title ?? '')
+  const [description, setDescription] = useState(
+    editingTask?.description ?? '',
+  )
+  const [category, setCategory] = useState(editingTask?.category ?? '')
+  const [priority, setPriority] = useState<Task['priority']>(
+    editingTask?.priority ?? 'medium',
+  )
   const [titleError, setTitleError] = useState('')
+  const isEditing = editingTask !== null
+  const isPending = pendingDeleteId !== null || pendingClearCompleted
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const trimmedTitle = title.trim()
-
-    if (!trimmedTitle) {
-      setTitleError('Введіть назву завдання.')
-      return
-    }
-
-    onAddTask({
-      title: trimmedTitle,
-      description: description.trim(),
-      category: category.trim() || 'Без категорії',
-      priority,
-    })
+  const resetForm = () => {
     setTitle('')
     setDescription('')
     setCategory('')
@@ -34,10 +36,44 @@ function TaskForm({ onAddTask }: TaskFormProps) {
     setTitleError('')
   }
 
+  const cancelEditing = () => {
+    setEditingTask(null)
+    resetForm()
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const trimmedTitle = title.trim()
+
+    if (!trimmedTitle) {
+      const message = 'Введіть назву завдання.'
+      setTitleError(message)
+      showToast(message, 'danger')
+      return
+    }
+
+    const changes = {
+      title: trimmedTitle,
+      description: description.trim(),
+      category: category.trim() || 'Без категорії',
+      priority,
+    }
+
+    if (editingTask) {
+      updateTask(editingTask.id, changes)
+      setEditingTask(null)
+    } else {
+      addTask(changes)
+    }
+    resetForm()
+  }
+
   return (
     <section className="card shadow-sm">
       <div className="card-body">
-        <h2 className="h4 card-title mb-3">Нове завдання</h2>
+        <h2 className="h4 card-title mb-3">
+          {isEditing ? 'Редагувати завдання' : 'Нове завдання'}
+        </h2>
         <form onSubmit={handleSubmit} noValidate>
           <div className="mb-3">
             <label htmlFor="task-title" className="form-label">
@@ -48,6 +84,7 @@ function TaskForm({ onAddTask }: TaskFormProps) {
               type="text"
               className={`form-control${titleError ? ' is-invalid' : ''}`}
               value={title}
+              disabled={isPending}
               onChange={(event) => {
                 setTitle(event.target.value)
                 if (titleError) setTitleError('')
@@ -71,6 +108,7 @@ function TaskForm({ onAddTask }: TaskFormProps) {
               className="form-control"
               rows={3}
               value={description}
+              disabled={isPending}
               onChange={(event) => setDescription(event.target.value)}
             />
           </div>
@@ -84,6 +122,7 @@ function TaskForm({ onAddTask }: TaskFormProps) {
               type="text"
               className="form-control"
               value={category}
+              disabled={isPending}
               onChange={(event) => setCategory(event.target.value)}
               placeholder="Наприклад, математика"
             />
@@ -97,9 +136,12 @@ function TaskForm({ onAddTask }: TaskFormProps) {
               id="task-priority"
               className="form-select"
               value={priority}
-              onChange={(event) =>
-                setPriority(event.target.value as Task['priority'])
-              }
+              disabled={isPending}
+              onChange={(event) => {
+                if (isPriority(event.target.value)) {
+                  setPriority(event.target.value)
+                }
+              }}
             >
               <option value="low">Низький</option>
               <option value="medium">Середній</option>
@@ -107,9 +149,25 @@ function TaskForm({ onAddTask }: TaskFormProps) {
             </select>
           </div>
 
-          <button type="submit" className="btn btn-primary w-100">
-            Додати завдання
-          </button>
+          <div className="d-flex gap-2">
+            <button
+              type="submit"
+              className="btn btn-primary flex-grow-1"
+              disabled={isPending}
+            >
+              {isEditing ? 'Зберегти зміни' : 'Додати завдання'}
+            </button>
+            {isEditing && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={cancelEditing}
+                disabled={isPending}
+              >
+                Скасувати
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </section>

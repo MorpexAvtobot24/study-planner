@@ -1,68 +1,85 @@
-import { useState } from 'react'
 import Header from './components/Header'
 import TaskFilters from './components/TaskFilters'
 import TaskForm from './components/TaskForm'
 import TaskList from './components/TaskList'
 import TaskStats from './components/TaskStats'
-import { initialTasks } from './data/initialTasks'
-import type { FilterType, Task } from './types/task'
+import Toast from './components/Toast'
+import { TaskProvider } from './context/TaskContext'
+import { useTaskContext } from './hooks/useTaskContext'
 
-function App() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks)
-  const [filter, setFilter] = useState<FilterType>('all')
+function StudyPlanner() {
+  const {
+    tasks,
+    pendingDeleteId,
+    pendingClearCompleted,
+    toast,
+    undoProgress,
+    undoDelete,
+    undoClearCompleted,
+    clearCompleted,
+    resetTasks,
+    dismissToast,
+    editingTask,
+  } = useTaskContext()
+  const completedCount = tasks.filter((task) => task.completed).length
+  const hasPendingAction =
+    pendingDeleteId !== null || pendingClearCompleted
 
-  const addTask = (taskDetails: Omit<Task, 'id' | 'completed'>) => {
-    setTasks((currentTasks) => {
-      const nextId = Math.max(0, ...currentTasks.map((task) => task.id)) + 1
-
-      return [...currentTasks, { ...taskDetails, id: nextId, completed: false }]
-    })
+  const handleUndo = () => {
+    if (toast?.undoAction === 'delete') undoDelete()
+    if (toast?.undoAction === 'clear') undoClearCompleted()
   }
-
-  const toggleTask = (id: number) => {
-    setTasks((currentTasks) =>
-      currentTasks.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task,
-      ),
-    )
-  }
-
-  const deleteTask = (id: number) => {
-    setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id))
-  }
-
-  const filteredTasks = tasks.filter((task) => {
-    if (filter === 'active') return !task.completed
-    if (filter === 'completed') return task.completed
-    return true
-  })
 
   return (
     <main className="container py-4 py-md-5">
       <Header />
-      <TaskStats tasks={tasks} />
+      <TaskStats />
 
       <div className="row g-4 mt-1">
         <div className="col-12 col-lg-5">
-          <TaskForm onAddTask={addTask} />
+          <TaskForm key={editingTask?.id ?? 'new'} />
         </div>
         <div className="col-12 col-lg-7">
           <section aria-label="Список завдань">
-            <TaskFilters
-              tasks={tasks}
-              activeFilter={filter}
-              onFilterChange={setFilter}
-            />
-            <TaskList
-              tasks={filteredTasks}
-              totalCount={tasks.length}
-              onToggleTask={toggleTask}
-              onDeleteTask={deleteTask}
-            />
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+              <TaskFilters />
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary btn-sm"
+                  onClick={clearCompleted}
+                  disabled={completedCount === 0 || hasPendingAction}
+                >
+                  Очистити виконані
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={resetTasks}
+                >
+                  Скинути дані
+                </button>
+              </div>
+            </div>
+            <TaskList />
           </section>
         </div>
       </div>
+      <Toast
+        toast={toast}
+        progress={undoProgress}
+        onUndo={handleUndo}
+        onDismiss={dismissToast}
+      />
     </main>
+  )
+}
+
+function App() {
+  return (
+    <TaskProvider>
+      <StudyPlanner />
+    </TaskProvider>
   )
 }
 
